@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from "react"
 
+import { kelvinToOverlayColor } from "~/utils/color"
 import {
+  clearForcedTemperature,
+  getDefaultSettings,
   loadSettings,
   saveCurrentTemperature,
+  saveForcedTemperature,
   saveSettings,
+  resetSettings as storageResetSettings,
   type CircadianSettings
 } from "~/utils/storage"
 import {
@@ -136,7 +141,9 @@ function IndexPopup() {
       // Exit preview mode and immediately update to the current period
       setIsPreviewMode(false)
       setActivePeriod(currentPeriod)
-    }, 5000) // 5 seconds
+      // Clear any forced preview temperature so background/content revert immediately
+      clearForcedTemperature()
+    }, 10000) // 10 seconds
 
     return () => clearTimeout(timeout)
   }, [isPreviewMode, daytimeStart, sunsetStart, bedtimeStart])
@@ -198,19 +205,59 @@ function IndexPopup() {
     return `${activePeriod}: ${startText}, Wake: ${wakeText} (${temperature}K)`
   }
 
+  // Slider color helper: 0% (min) => red, 100% (max) => white
+  const getSliderColor = (value: number): string => {
+    const min = 1500
+    const max = 6500
+    const pct = Math.max(0, Math.min(1, (value - min) / (max - min)))
+    const channel = Math.round(255 * pct) // green/blue channels
+    return `rgb(255, ${channel}, ${channel})`
+  }
+
+  const daytimeSliderColor = getSliderColor(daytimeTemp)
+  const sunsetSliderColor = getSliderColor(sunsetTemp)
+  const bedtimeSliderColor = getSliderColor(bedtimeTemp)
+
   return (
     <div
       style={{
         width: 500,
-        backgroundColor: "#F5F5F5",
+        backgroundColor: "#121212",
         fontFamily:
           "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         padding: 14,
         display: "flex",
-        flexDirection: "column"
+        flexDirection: "column",
+        position: "relative",
+        overflow: "hidden",
+        color: "#EEE"
       }}>
+      {/* Global dark background + reset margin to remove white borders */}
+      <style>{`
+        html, body {
+          margin: 0;
+          background: #121212 !important;
+          color: #EEE;
+        }
+        /* Make time picker icon visible on dark bg and orange-tinted */
+        // input[type="time"]::-webkit-calendar-picker-indicator {
+        //   filter: invert(85%) sepia(60%) saturate(600%) hue-rotate(355deg) brightness(105%);
+        // }
+      `}</style>
+      {isEnabled && currentTemperature ? (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            mixBlendMode: "color" as React.CSSProperties["mixBlendMode"],
+            backgroundColor: kelvinToOverlayColor(currentTemperature),
+            zIndex: 0
+          }}
+        />
+      ) : null}
       {/* Header */}
-      <div style={{ marginBottom: 14 }}>
+      <div style={{ marginBottom: 14, color: "#EEE" }}>
         <div
           style={{
             display: "flex",
@@ -219,45 +266,113 @@ function IndexPopup() {
             marginBottom: 10
           }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #FFD700 0%, #FFA500 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 14
-              }}>
-              ☀️
-            </div>
+            <svg
+              className="w-6 h-6 text-gray-800 dark:text-white"
+              aria-hidden="true"
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              fill="currentColor"
+              viewBox="0 0 24 24">
+              <path
+                fillRule="evenodd"
+                d="M17 4c.5523 0 1 .44772 1 1v2h2c.5523 0 1 .44771 1 1 0 .55228-.4477 1-1 1h-2v2c0 .5523-.4477 1-1 1s-1-.4477-1-1V9h-2c-.5523 0-1-.44772-1-1s.4477-1 1-1h2V5c0-.55228.4477-1 1-1Z"
+                clipRule="evenodd"
+              />
+              <path d="M12.3224 4.68708c.2935-.31028.3575-.77266.1594-1.15098-.1981-.37832-.6146-.5891-1.0368-.52467-1.50847.2302-2.93175.83665-4.12869 1.76276-1.19717.92628-2.12732 2.1411-2.69465 3.52702-.56744 1.38618-.75115 2.89299-.53164 4.37079.2195 1.4776.83393 2.8711 1.77895 4.0436.9448 1.1722 2.18683 2.0826 3.60103 2.6449 1.414.5623 2.9539.7584 4.4683.57 1.5145-.1884 2.9549-.7551 4.1784-1.6475 1.2237-.8924 2.1892-2.0806 2.7972-3.4499.1723-.3879.0809-.8423-.2279-1.1335-.3089-.2911-.7679-.3556-1.145-.1608-.8631.4459-1.8291.6799-2.8118.6791h-.0018c-1.1598.0013-2.2925-.3234-3.2596-.931-.9667-.6074-1.7244-1.4697-2.1856-2.4779-.4611-1.00776-.6079-2.1209-.4243-3.20511.1835-1.08442.6905-2.09837 1.4645-2.91681Z" />
+            </svg>
+
             <span style={{ fontSize: 13, fontWeight: 500 }}>Circadian</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {isEnabled && (
-              <span style={{ fontSize: 11, color: "#666" }}>
+              <span style={{ fontSize: 11, color: "#AAA" }}>
                 {currentTemperature}K
               </span>
             )}
             {currentTimeString && (
-              <span style={{ fontSize: 11, color: "#666" }}>
+              <span style={{ fontSize: 11, color: "#AAA" }}>
                 {currentTimeString}
               </span>
             )}
+            <button
+              type="button"
+              onClick={async () => {
+                // Reset persisted settings
+                await storageResetSettings()
+                await clearForcedTemperature()
+
+                // Reset local state to defaults
+                const d = getDefaultSettings()
+                setIsEnabled(d.enabled)
+                setDaytimeTime24("06:00")
+                setSunsetTime24("18:00")
+                setBedtimeTime24("22:00")
+                setDaytimeTemp(d.daytimeTemp)
+                setSunsetTemp(d.sunsetTemp)
+                setBedtimeTemp(d.bedtimeTemp)
+
+                // Exit preview
+                setIsPreviewMode(false)
+
+                // Save new settings to trigger background/content updates
+                const s: CircadianSettings = {
+                  enabled: d.enabled,
+                  daytimeStart: d.daytimeStart,
+                  sunsetStart: d.sunsetStart,
+                  bedtimeStart: d.bedtimeStart,
+                  daytimeTemp: d.daytimeTemp,
+                  sunsetTemp: d.sunsetTemp,
+                  bedtimeTemp: d.bedtimeTemp
+                }
+                await saveSettings(s)
+                // Immediately compute and publish the current temperature so overlay updates now
+                const now = getCurrentUnixTime()
+                const period = getCurrentPeriod(
+                  now,
+                  d.daytimeStart,
+                  d.sunsetStart,
+                  d.bedtimeStart
+                )
+                const temp =
+                  period === "Daytime"
+                    ? d.daytimeTemp
+                    : period === "Sunset"
+                      ? d.sunsetTemp
+                      : d.bedtimeTemp
+                await saveCurrentTemperature(temp)
+              }}
+              title="Reset settings"
+              style={{
+                fontSize: 11,
+                color: "#DDD",
+                background: "#1E1E1E",
+                border: "1px solid #2A2A2A",
+                padding: "2px 6px",
+                borderRadius: 3,
+                cursor: "pointer"
+              }}>
+              Reset
+            </button>
             <label
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
                 cursor: "pointer",
-                fontSize: 12
+                fontSize: 12,
+                color: "#DDD"
               }}>
               <input
                 type="checkbox"
                 checked={isEnabled}
                 onChange={(e) => setIsEnabled(e.target.checked)}
-                style={{ cursor: "pointer", width: 14, height: 14 }}
+                style={{
+                  cursor: "pointer",
+                  width: 14,
+                  height: 14,
+                  accentColor: "#FFA500"
+                }}
               />
               <span>Enable</span>
             </label>
@@ -271,7 +386,8 @@ function IndexPopup() {
           style={{
             display: "flex",
             gap: 3,
-            backgroundColor: "#E0E0E0",
+            backgroundColor: "#1A1A1A",
+            border: "1px solid #2A2A2A",
             borderRadius: 5,
             padding: 3,
             marginBottom: 8
@@ -290,27 +406,31 @@ function IndexPopup() {
             return (
               <button
                 key={period}
-                onClick={() => {
+                onClick={async () => {
                   if (isCurrentPeriod) {
                     // Clicking current period - exit preview mode
                     setIsPreviewMode(false)
+                    await clearForcedTemperature()
                   } else {
                     // Clicking different period - enter preview mode
                     setIsPreviewMode(true)
                     setActivePeriod(period)
+                    // Save a forced temperature for 10s so content and background apply immediately
+                    const temp = getTemperatureForPeriod(period)
+                    await saveForcedTemperature(temp, Date.now() + 10_000)
                   }
                 }}
                 style={{
                   flex: 1,
                   padding: "6px 8px",
-                  border: "none",
+                  border: "1px solid #2A2A2A",
                   borderRadius: 3,
-                  backgroundColor: isSelected ? "white" : "transparent",
-                  color: isSelected ? "#333" : "#666",
+                  backgroundColor: isSelected ? "#1F1F1F" : "transparent",
+                  color: isSelected ? "#EEE" : "#AAA",
                   fontWeight: isSelected ? 600 : 400,
                   cursor: "pointer",
                   fontSize: 11,
-                  boxShadow: isSelected ? "0 1px 2px rgba(0,0,0,0.1)" : "none"
+                  boxShadow: isSelected ? "0 1px 2px rgba(0,0,0,0.4)" : "none"
                 }}>
                 {period}
               </button>
@@ -318,7 +438,7 @@ function IndexPopup() {
           })}
         </div>
 
-        <div style={{ fontSize: 11, color: "#666", marginBottom: 10 }}>
+        <div style={{ fontSize: 11, color: "#AAA", marginBottom: 10 }}>
           {getStatusMessage()}
         </div>
 
@@ -332,7 +452,13 @@ function IndexPopup() {
           }}>
           {/* Daytime */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <label style={{ fontSize: 11, fontWeight: 500, width: 70 }}>
+            <label
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                width: 70,
+                color: "#DDD"
+              }}>
               Daytime:
             </label>
             <input
@@ -341,7 +467,10 @@ function IndexPopup() {
               onChange={(e) => setDaytimeTime24(e.target.value)}
               style={{
                 padding: "4px 6px",
-                border: "1px solid #CCC",
+                border: "1px solid #2A2A2A",
+                background: "#1E1E1E",
+                color: "#EEE",
+                colorScheme: "dark",
                 borderRadius: 3,
                 fontSize: 11
               }}
@@ -355,8 +484,8 @@ function IndexPopup() {
               }}>
               <input
                 type="range"
-                min="2000"
-                max="8000"
+                min="1500"
+                max="6500"
                 value={daytimeTemp}
                 onChange={(e) => setDaytimeTemp(parseInt(e.target.value, 10))}
                 style={{
@@ -364,13 +493,14 @@ function IndexPopup() {
                   height: 4,
                   borderRadius: 3,
                   outline: "none",
-                  cursor: "pointer"
+                  cursor: "pointer",
+                  accentColor: daytimeSliderColor
                 }}
               />
               <span
                 style={{
                   fontSize: 10,
-                  color: "#666",
+                  color: "#AAA",
                   width: 50,
                   textAlign: "right"
                 }}>
@@ -381,7 +511,13 @@ function IndexPopup() {
 
           {/* Sunset */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <label style={{ fontSize: 11, fontWeight: 500, width: 70 }}>
+            <label
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                width: 70,
+                color: "#DDD"
+              }}>
               Sunset:
             </label>
             <input
@@ -390,7 +526,10 @@ function IndexPopup() {
               onChange={(e) => setSunsetTime24(e.target.value)}
               style={{
                 padding: "4px 6px",
-                border: "1px solid #CCC",
+                border: "1px solid #2A2A2A",
+                background: "#1E1E1E",
+                color: "#EEE",
+                colorScheme: "dark",
                 borderRadius: 3,
                 fontSize: 11
               }}
@@ -404,8 +543,8 @@ function IndexPopup() {
               }}>
               <input
                 type="range"
-                min="2000"
-                max="8000"
+                min="1500"
+                max="6500"
                 value={sunsetTemp}
                 onChange={(e) => setSunsetTemp(parseInt(e.target.value, 10))}
                 style={{
@@ -413,13 +552,14 @@ function IndexPopup() {
                   height: 4,
                   borderRadius: 3,
                   outline: "none",
-                  cursor: "pointer"
+                  cursor: "pointer",
+                  accentColor: sunsetSliderColor
                 }}
               />
               <span
                 style={{
                   fontSize: 10,
-                  color: "#666",
+                  color: "#AAA",
                   width: 50,
                   textAlign: "right"
                 }}>
@@ -430,7 +570,13 @@ function IndexPopup() {
 
           {/* Bedtime */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <label style={{ fontSize: 11, fontWeight: 500, width: 70 }}>
+            <label
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                width: 70,
+                color: "#DDD"
+              }}>
               Bedtime:
             </label>
             <input
@@ -439,7 +585,10 @@ function IndexPopup() {
               onChange={(e) => setBedtimeTime24(e.target.value)}
               style={{
                 padding: "4px 6px",
-                border: "1px solid #CCC",
+                border: "1px solid #2A2A2A",
+                background: "#1E1E1E",
+                color: "#EEE",
+                colorScheme: "dark",
                 borderRadius: 3,
                 fontSize: 11
               }}
@@ -453,8 +602,8 @@ function IndexPopup() {
               }}>
               <input
                 type="range"
-                min="2000"
-                max="8000"
+                min="1500"
+                max="6500"
                 value={bedtimeTemp}
                 onChange={(e) => setBedtimeTemp(parseInt(e.target.value, 10))}
                 style={{
@@ -462,13 +611,14 @@ function IndexPopup() {
                   height: 4,
                   borderRadius: 3,
                   outline: "none",
-                  cursor: "pointer"
+                  cursor: "pointer",
+                  accentColor: bedtimeSliderColor
                 }}
               />
               <span
                 style={{
                   fontSize: 10,
-                  color: "#666",
+                  color: "#AAA",
                   width: 50,
                   textAlign: "right"
                 }}>

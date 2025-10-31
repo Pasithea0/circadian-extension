@@ -35,6 +35,16 @@
     "prettier": "^3.2.4",
     "typescript": "^5.3.3"
   },
+  "assets": [
+    "assets/icon.png",
+    "assets/icon@2x.png",
+    "assets/icon16.png",
+    "assets/icon19.png",
+    "assets/icon32.png",
+    "assets/icon38.png",
+    "assets/icon48.png",
+    "assets/icon128.png"
+  ],
   "manifest": {
     "host_permissions": [
       "https://*/*"
