@@ -54,7 +54,6 @@ Load the built output from `build/<target>-prod` (or dev for live preview) in th
 ## Notes
 
 - Icons are in `assets/`. I used magick to convert the logo from SVG to PNG. 
-- Firefox uses a fixed UUID (set in `src/manifest.ts`).
 
 ## License
 
