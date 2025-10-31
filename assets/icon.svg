@@ -1,0 +1,33 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sunGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFA500;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="moonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#E6E6FA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#B0C4DE;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle representing the 24-hour cycle -->
+  <circle cx="64" cy="64" r="60" fill="none" stroke="#4A5568" stroke-width="4"/>
+
+  <!-- Sun (daytime) -->
+  <circle cx="64" cy="35" r="12" fill="url(#sunGradient)"/>
+  <!-- Sun rays -->
+  <line x1="64" y1="20" x2="64" y2="15" stroke="#FFD700" stroke-width="2"/>
+  <line x1="79" y1="35" x2="84" y2="35" stroke="#FFD700" stroke-width="2"/>
+  <line x1="64" y1="50" x2="64" y2="55" stroke="#FFD700" stroke-width="2"/>
+  <line x1="49" y1="35" x2="44" y2="35" stroke="#FFD700" stroke-width="2"/>
+
+  <!-- Moon (nighttime) -->
+  <circle cx="64" cy="93" r="12" fill="url(#moonGradient)"/>
+  <!-- Moon craters -->
+  <circle cx="67" cy="90" r="2" fill="#F5F5F5"/>
+  <circle cx="61" cy="95" r="1.5" fill="#F5F5F5"/>
+
+  <!-- Clock hands showing current time concept -->
+  <line x1="64" y1="64" x2="64" y2="45" stroke="#2D3748" stroke-width="3" stroke-linecap="round"/>
+  <line x1="64" y1="64" x2="75" y2="64" stroke="#718096" stroke-width="2" stroke-linecap="round"/>
+</svg>
