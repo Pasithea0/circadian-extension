@@ -310,24 +310,3 @@ export function getNextDaytimeStart(
 
   return nextDaytime.getTime()
 }
-
-/**
- * Get temperature for a given period (placeholder - will be replaced with proper calculations)
- * @param period Period type
- * @returns Color temperature in Kelvin
- */
-export function getPeriodTemperature(
-  period: "Daytime" | "Sunset" | "Bedtime"
-): number {
-  // Placeholder temperatures
-  switch (period) {
-    case "Daytime":
-      return 5500 // Cool daylight
-    case "Sunset":
-      return 3300 // Warm sunset
-    case "Bedtime":
-      return 2700 // Very warm bedtime
-    default:
-      return 4000
-  }
-}

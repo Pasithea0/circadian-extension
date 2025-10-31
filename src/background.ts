@@ -103,7 +103,7 @@ updateTemperature()
 // Update temperature every minute
 setInterval(() => {
   updateTemperature()
-}, 60000) // 60 seconds
+}, 45000) // 45 seconds
 
 // Also listen for storage changes to update immediately when settings change
 try {

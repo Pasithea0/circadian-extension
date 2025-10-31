@@ -64,7 +64,7 @@ function applyTemperature(
   const el = ensureOverlay()
   // Choose transition based on mode
   if (mode === "auto") {
-    el.style.transition = "background-color 1.5s ease-in-out"
+    el.style.transition = "background-color 10s ease-in-out"
     lastAutoAppliedAt = Date.now()
   } else if (mode === "preview") {
     el.style.transition = "background-color 0.2s ease"

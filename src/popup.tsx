@@ -221,7 +221,7 @@ function IndexPopup() {
   return (
     <div
       style={{
-        width: 500,
+        width: 400,
         backgroundColor: "#121212",
         fontFamily:
           "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
