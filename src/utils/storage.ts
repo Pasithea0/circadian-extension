@@ -12,6 +12,16 @@ const STORAGE_KEYS = {
   CURRENT_TEMP: "circadian_current_temp"
 } as const
 
+function isRuntimeAvailable(): boolean {
+  try {
+    return (
+      typeof chrome !== "undefined" && !!chrome.runtime && !!chrome.runtime.id
+    )
+  } catch {
+    return false
+  }
+}
+
 /**
  * Settings interface
  */
@@ -42,6 +52,7 @@ export function getDefaultSettings(): CircadianSettings {
  */
 export async function saveSettings(settings: CircadianSettings): Promise<void> {
   try {
+    if (!isRuntimeAvailable()) return
     await chrome.storage.local.set({
       [STORAGE_KEYS.ENABLED]: settings.enabled,
       [STORAGE_KEYS.DAYTIME_START]: settings.daytimeStart,
@@ -51,8 +62,8 @@ export async function saveSettings(settings: CircadianSettings): Promise<void> {
       [STORAGE_KEYS.SUNSET_TEMP]: settings.sunsetTemp,
       [STORAGE_KEYS.BEDTIME_TEMP]: settings.bedtimeTemp
     })
-  } catch (error) {
-    console.error("Failed to save settings:", error)
+  } catch {
+    // ignore when context invalidated
   }
 }
 
@@ -61,6 +72,7 @@ export async function saveSettings(settings: CircadianSettings): Promise<void> {
  */
 export async function loadSettings(): Promise<Partial<CircadianSettings>> {
   try {
+    if (!isRuntimeAvailable()) return getDefaultSettings()
     const result = await chrome.storage.local.get([
       STORAGE_KEYS.ENABLED,
       STORAGE_KEYS.DAYTIME_START,
@@ -80,9 +92,8 @@ export async function loadSettings(): Promise<Partial<CircadianSettings>> {
       sunsetTemp: result[STORAGE_KEYS.SUNSET_TEMP] ?? 4500,
       bedtimeTemp: result[STORAGE_KEYS.BEDTIME_TEMP] ?? 2600
     }
-  } catch (error) {
-    console.error("Failed to load settings:", error)
-    // Return defaults
+  } catch {
+    // Return defaults silently
     return getDefaultSettings()
   }
 }
@@ -94,11 +105,12 @@ export async function saveCurrentTemperature(
   temperature: number
 ): Promise<void> {
   try {
+    if (!isRuntimeAvailable()) return
     await chrome.storage.local.set({
       [STORAGE_KEYS.CURRENT_TEMP]: temperature
     })
-  } catch (error) {
-    console.error("Failed to save current temperature:", error)
+  } catch {
+    // ignore
   }
 }
 
@@ -107,10 +119,10 @@ export async function saveCurrentTemperature(
  */
 export async function loadCurrentTemperature(): Promise<number | null> {
   try {
+    if (!isRuntimeAvailable()) return null
     const result = await chrome.storage.local.get([STORAGE_KEYS.CURRENT_TEMP])
     return result[STORAGE_KEYS.CURRENT_TEMP] ?? null
-  } catch (error) {
-    console.error("Failed to load current temperature:", error)
+  } catch {
     return null
   }
 }
@@ -123,17 +135,22 @@ const FORCED_KEYS = {
   EXPIRES: "circadian_forced_temp_expires"
 } as const
 
+const FLAG_KEYS = {
+  INSTANT_APPLY_ONCE: "circadian_instant_apply_once"
+} as const
+
 export async function saveForcedTemperature(
   temperature: number,
   expiresAt: number
 ): Promise<void> {
   try {
+    if (!isRuntimeAvailable()) return
     await chrome.storage.local.set({
       [FORCED_KEYS.TEMP]: temperature,
       [FORCED_KEYS.EXPIRES]: expiresAt
     })
-  } catch (error) {
-    console.error("Failed to save forced temperature:", error)
+  } catch {
+    // ignore
   }
 }
 
@@ -142,6 +159,7 @@ export async function loadForcedTemperature(): Promise<{
   expiresAt: number | null
 }> {
   try {
+    if (!isRuntimeAvailable()) return { temperature: null, expiresAt: null }
     const result = await chrome.storage.local.get([
       FORCED_KEYS.TEMP,
       FORCED_KEYS.EXPIRES
@@ -150,17 +168,49 @@ export async function loadForcedTemperature(): Promise<{
       temperature: result[FORCED_KEYS.TEMP] ?? null,
       expiresAt: result[FORCED_KEYS.EXPIRES] ?? null
     }
-  } catch (error) {
-    console.error("Failed to load forced temperature:", error)
+  } catch {
     return { temperature: null, expiresAt: null }
   }
 }
 
 export async function clearForcedTemperature(): Promise<void> {
   try {
+    if (!isRuntimeAvailable()) return
     await chrome.storage.local.remove([FORCED_KEYS.TEMP, FORCED_KEYS.EXPIRES])
-  } catch (error) {
-    console.error("Failed to clear forced temperature:", error)
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Set a flag to apply the next temperature update instantly (no animation).
+ */
+export async function markInstantApplyOnce(): Promise<void> {
+  try {
+    if (!isRuntimeAvailable()) return
+    await chrome.storage.local.set({ [FLAG_KEYS.INSTANT_APPLY_ONCE]: true })
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Consume and clear the instant apply flag.
+ * @returns true if the flag was set, false otherwise
+ */
+export async function consumeInstantApplyOnce(): Promise<boolean> {
+  try {
+    if (!isRuntimeAvailable()) return false
+    const result = await chrome.storage.local.get([
+      FLAG_KEYS.INSTANT_APPLY_ONCE
+    ])
+    const flag = !!result[FLAG_KEYS.INSTANT_APPLY_ONCE]
+    if (flag) {
+      await chrome.storage.local.remove([FLAG_KEYS.INSTANT_APPLY_ONCE])
+    }
+    return flag
+  } catch {
+    return false
   }
 }
 
@@ -170,6 +220,7 @@ export async function clearForcedTemperature(): Promise<void> {
 export async function resetSettings(): Promise<void> {
   const defaults = getDefaultSettings()
   try {
+    if (!isRuntimeAvailable()) return
     await chrome.storage.local.set({
       [STORAGE_KEYS.ENABLED]: defaults.enabled,
       [STORAGE_KEYS.DAYTIME_START]: defaults.daytimeStart,
@@ -181,7 +232,7 @@ export async function resetSettings(): Promise<void> {
       [STORAGE_KEYS.CURRENT_TEMP]: null
     })
     await clearForcedTemperature()
-  } catch (error) {
-    console.error("Failed to reset settings:", error)
+  } catch {
+    // ignore
   }
 }

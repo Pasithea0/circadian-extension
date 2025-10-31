@@ -487,7 +487,19 @@ function IndexPopup() {
                 min="1500"
                 max="6500"
                 value={daytimeTemp}
-                onChange={(e) => setDaytimeTemp(parseInt(e.target.value, 10))}
+                onChange={async (e) => {
+                  const v = parseInt(e.target.value, 10)
+                  setDaytimeTemp(v)
+                  // If adjusting active period, apply immediately without animation
+                  if (activePeriod === "Daytime" && isEnabled) {
+                    await saveCurrentTemperature(v)
+                    // Mark instant apply flag for content script
+                    const { markInstantApplyOnce } = await import(
+                      "~/utils/storage"
+                    )
+                    await markInstantApplyOnce()
+                  }
+                }}
                 style={{
                   flex: 1,
                   height: 4,
@@ -546,7 +558,17 @@ function IndexPopup() {
                 min="1500"
                 max="6500"
                 value={sunsetTemp}
-                onChange={(e) => setSunsetTemp(parseInt(e.target.value, 10))}
+                onChange={async (e) => {
+                  const v = parseInt(e.target.value, 10)
+                  setSunsetTemp(v)
+                  if (activePeriod === "Sunset" && isEnabled) {
+                    await saveCurrentTemperature(v)
+                    const { markInstantApplyOnce } = await import(
+                      "~/utils/storage"
+                    )
+                    await markInstantApplyOnce()
+                  }
+                }}
                 style={{
                   flex: 1,
                   height: 4,
@@ -605,7 +627,17 @@ function IndexPopup() {
                 min="1500"
                 max="6500"
                 value={bedtimeTemp}
-                onChange={(e) => setBedtimeTemp(parseInt(e.target.value, 10))}
+                onChange={async (e) => {
+                  const v = parseInt(e.target.value, 10)
+                  setBedtimeTemp(v)
+                  if (activePeriod === "Bedtime" && isEnabled) {
+                    await saveCurrentTemperature(v)
+                    const { markInstantApplyOnce } = await import(
+                      "~/utils/storage"
+                    )
+                    await markInstantApplyOnce()
+                  }
+                }}
                 style={{
                   flex: 1,
                   height: 4,

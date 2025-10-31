@@ -2,6 +2,7 @@ import type { PlasmoCSConfig } from "plasmo"
 
 import { kelvinToOverlayColor } from "~/utils/color"
 import {
+  consumeInstantApplyOnce,
   loadCurrentTemperature,
   loadForcedTemperature,
   loadSettings
@@ -12,10 +13,21 @@ export const config: PlasmoCSConfig = {
   all_frames: true
 }
 
+function isRuntimeAvailable(): boolean {
+  try {
+    return (
+      typeof chrome !== "undefined" && !!chrome.runtime && !!chrome.runtime.id
+    )
+  } catch {
+    return false
+  }
+}
+
 let lastTemperature: number | null = null
 let currentDisplayTemperature: number | null = null
 let animationFrame: number | null = null
 let overlayEl: HTMLDivElement | null = null
+let intervalId: number | null = null
 
 /**
  * Create or update the circadian filter overlay
@@ -57,6 +69,10 @@ function setOverlayTemperature(temperature: number): void {
  * Update filter based on stored temperature and enabled state
  */
 async function updateFilter(): Promise<void> {
+  // Skip if runtime unavailable (e.g., during dev reloads)
+  if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.id) {
+    return
+  }
   const settings = await loadSettings()
 
   // Only apply filter if extension is enabled
@@ -85,8 +101,15 @@ async function updateFilter(): Promise<void> {
 
   const temperature = await loadCurrentTemperature()
   if (temperature != null) {
-    // Normal period change: smoother transition
-    animateToTemperature(temperature, 5000)
+    // If user is dragging a slider for the active period, apply instantly
+    const instant = await consumeInstantApplyOnce()
+    if (instant) {
+      setOverlayTemperature(temperature)
+      lastTemperature = temperature
+    } else {
+      // Normal period change: smoother transition
+      animateToTemperature(temperature, 5000)
+    }
   }
 }
 
@@ -94,24 +117,42 @@ async function updateFilter(): Promise<void> {
 updateFilter()
 
 // Listen for storage changes to update filter immediately
-chrome.storage.onChanged.addListener(async (changes, areaName) => {
-  if (areaName === "local") {
-    // Check if enabled state or temperature changed
-    if (
-      changes.circadian_enabled ||
-      changes.circadian_current_temp ||
-      changes.circadian_forced_temp ||
-      changes.circadian_forced_temp_expires
-    ) {
-      await updateFilter()
+try {
+  chrome.storage.onChanged.addListener(async (changes, areaName) => {
+    if (areaName === "local") {
+      if (!isRuntimeAvailable()) return
+      if (
+        changes.circadian_enabled ||
+        changes.circadian_current_temp ||
+        changes.circadian_forced_temp ||
+        changes.circadian_forced_temp_expires
+      ) {
+        await updateFilter()
+      }
     }
-  }
-})
+  })
+} catch {
+  // ignore listener errors during dev reload
+}
 
 // Also update periodically (every minute) to catch any missed updates
-setInterval(() => {
+intervalId = setInterval(() => {
+  if (!isRuntimeAvailable()) return
   updateFilter()
-}, 60000)
+}, 60000) as unknown as number
+
+// Cleanup on unload to prevent callbacks after context invalidation
+function cleanup(): void {
+  if (animationFrame) {
+    cancelAnimationFrame(animationFrame)
+    animationFrame = null
+  }
+  if (intervalId) {
+    clearInterval(intervalId)
+    intervalId = null
+  }
+}
+window.addEventListener("beforeunload", cleanup)
 
 // Smooth transition between temperatures over 5 seconds
 function animateToTemperature(target: number, duration: number = 5000): void {
