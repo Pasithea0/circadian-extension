@@ -1,8 +1,8 @@
 {
   "name": "circadian",
   "displayName": "Circadian",
-  "version": "0.0.1",
-  "description": "A browser extension that adjusts the color temperature based on the time of day.",
+  "version": "1.0.0",
+  "description": "A browser extension that tints pages by time of day (daytime, sunset, bedtime).",
   "author": "Pas",
   "scripts": {
     "dev": "plasmo dev",
