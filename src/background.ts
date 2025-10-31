@@ -1,3 +1,4 @@
+import { browserAPI, isRuntimeAvailable } from "~/utils/browser"
 import {
   clearForcedTemperature,
   loadForcedTemperature,
@@ -34,6 +35,7 @@ function getTemperatureForPeriod(
  */
 async function updateTemperature(): Promise<void> {
   try {
+    if (!isRuntimeAvailable()) return
     // Check for forced (preview) temperature first
     const forced = await loadForcedTemperature()
     const now = Date.now()
@@ -104,9 +106,13 @@ setInterval(() => {
 }, 60000) // 60 seconds
 
 // Also listen for storage changes to update immediately when settings change
-chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === "local") {
-    // Update temperature when settings change
-    updateTemperature()
-  }
-})
+try {
+  const api = browserAPI()
+  api?.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === "local") {
+      updateTemperature()
+    }
+  })
+} catch {
+  // ignore listener attach errors
+}

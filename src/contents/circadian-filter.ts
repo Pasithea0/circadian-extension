@@ -1,5 +1,6 @@
 import type { PlasmoCSConfig } from "plasmo"
 
+import { browserAPI, isRuntimeAvailable } from "~/utils/browser"
 import { kelvinToOverlayColor } from "~/utils/color"
 import {
   consumeInstantApplyOnce,
@@ -13,21 +14,12 @@ export const config: PlasmoCSConfig = {
   all_frames: true
 }
 
-function isRuntimeAvailable(): boolean {
-  try {
-    return (
-      typeof chrome !== "undefined" && !!chrome.runtime && !!chrome.runtime.id
-    )
-  } catch {
-    return false
-  }
-}
+// use shared isRuntimeAvailable from utils/browser
 
 let lastTemperature: number | null = null
-let currentDisplayTemperature: number | null = null
-let animationFrame: number | null = null
 let overlayEl: HTMLDivElement | null = null
 let intervalId: number | null = null
+let lastAutoAppliedAt = 0
 
 /**
  * Create or update the circadian filter overlay
@@ -47,6 +39,7 @@ function ensureOverlay(): HTMLDivElement {
     pointer-events: none;
     z-index: 2147483647;
     mix-blend-mode: color;
+    transition: none;
   `
   document.body.appendChild(overlayEl)
   return overlayEl
@@ -62,7 +55,25 @@ function removeOverlay(): void {
 function setOverlayTemperature(temperature: number): void {
   const el = ensureOverlay()
   el.style.backgroundColor = kelvinToOverlayColor(temperature)
-  currentDisplayTemperature = temperature
+}
+
+function applyTemperature(
+  temperature: number,
+  mode: "auto" | "preview" | "instant"
+): void {
+  const el = ensureOverlay()
+  // Choose transition based on mode
+  if (mode === "auto") {
+    el.style.transition = "background-color 1.5s ease-in-out"
+    lastAutoAppliedAt = Date.now()
+  } else if (mode === "preview") {
+    el.style.transition = "background-color 0.2s ease"
+  } else {
+    // instant
+    el.style.transition = "none"
+  }
+  setOverlayTemperature(temperature)
+  lastTemperature = temperature
 }
 
 /**
@@ -77,10 +88,6 @@ async function updateFilter(): Promise<void> {
 
   // Only apply filter if extension is enabled
   if (!settings.enabled) {
-    if (animationFrame) {
-      cancelAnimationFrame(animationFrame)
-      animationFrame = null
-    }
     lastTemperature = null
     removeOverlay()
     return
@@ -94,21 +101,29 @@ async function updateFilter(): Promise<void> {
     forced.expiresAt &&
     forced.expiresAt > now
   ) {
-    // Preview: faster transition
-    animateToTemperature(forced.temperature, 1000)
+    // Preview: short transition
+    applyTemperature(forced.temperature, "preview")
     return
   }
 
   const temperature = await loadCurrentTemperature()
   if (temperature != null) {
-    // If user is dragging a slider for the active period, apply instantly
     const instant = await consumeInstantApplyOnce()
     if (instant) {
-      setOverlayTemperature(temperature)
-      lastTemperature = temperature
-    } else {
-      // Normal period change: smoother transition
-      animateToTemperature(temperature, 5000)
+      applyTemperature(temperature, "instant")
+      return
+    }
+    // Automatic time-based change: avoid spamming transitions when manually messing around with it
+    const nowTs = Date.now()
+    const timeSince = nowTs - lastAutoAppliedAt
+    const delta =
+      lastTemperature == null
+        ? Infinity
+        : Math.abs(temperature - lastTemperature)
+    if (timeSince > 3000 || delta >= 25) {
+      applyTemperature(temperature, "auto")
+    } else if (lastTemperature == null) {
+      applyTemperature(temperature, "instant")
     }
   }
 }
@@ -118,7 +133,8 @@ updateFilter()
 
 // Listen for storage changes to update filter immediately
 try {
-  chrome.storage.onChanged.addListener(async (changes, areaName) => {
+  const api = browserAPI()
+  api?.storage.onChanged.addListener(async (changes, areaName) => {
     if (areaName === "local") {
       if (!isRuntimeAvailable()) return
       if (
@@ -143,51 +159,9 @@ intervalId = setInterval(() => {
 
 // Cleanup on unload to prevent callbacks after context invalidation
 function cleanup(): void {
-  if (animationFrame) {
-    cancelAnimationFrame(animationFrame)
-    animationFrame = null
-  }
   if (intervalId) {
     clearInterval(intervalId)
     intervalId = null
   }
 }
 window.addEventListener("beforeunload", cleanup)
-
-// Smooth transition between temperatures over 5 seconds
-function animateToTemperature(target: number, duration: number = 5000): void {
-  if (animationFrame) {
-    cancelAnimationFrame(animationFrame)
-    animationFrame = null
-  }
-
-  const startTemp = currentDisplayTemperature ?? lastTemperature ?? target
-  const delta = target - startTemp
-  if (Math.abs(delta) < 1) {
-    setOverlayTemperature(target)
-    lastTemperature = target
-    return
-  }
-
-  const start = performance.now()
-
-  const easeInOutCubic = (t: number): number =>
-    t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
-
-  const step = (now: number) => {
-    const elapsed = now - start
-    const progress = Math.min(1, elapsed / duration)
-    const eased = easeInOutCubic(progress)
-    const current = Math.round(startTemp + delta * eased)
-    setOverlayTemperature(current)
-    if (progress < 1) {
-      animationFrame = requestAnimationFrame(step)
-    } else {
-      animationFrame = null
-      lastTemperature = target
-    }
-  }
-
-  ensureOverlay()
-  animationFrame = requestAnimationFrame(step)
-}

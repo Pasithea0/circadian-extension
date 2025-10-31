@@ -1,6 +1,8 @@
 /**
  * Storage keys for circadian extension settings
  */
+import { browserAPI, isRuntimeAvailable } from "~/utils/browser"
+
 const STORAGE_KEYS = {
   ENABLED: "circadian_enabled",
   DAYTIME_START: "circadian_daytime_start",
@@ -12,15 +14,7 @@ const STORAGE_KEYS = {
   CURRENT_TEMP: "circadian_current_temp"
 } as const
 
-function isRuntimeAvailable(): boolean {
-  try {
-    return (
-      typeof chrome !== "undefined" && !!chrome.runtime && !!chrome.runtime.id
-    )
-  } catch {
-    return false
-  }
-}
+// using shared isRuntimeAvailable from utils/browser
 
 /**
  * Settings interface
@@ -53,7 +47,8 @@ export function getDefaultSettings(): CircadianSettings {
 export async function saveSettings(settings: CircadianSettings): Promise<void> {
   try {
     if (!isRuntimeAvailable()) return
-    await chrome.storage.local.set({
+    const api = browserAPI()!
+    await api.storage.local.set({
       [STORAGE_KEYS.ENABLED]: settings.enabled,
       [STORAGE_KEYS.DAYTIME_START]: settings.daytimeStart,
       [STORAGE_KEYS.SUNSET_START]: settings.sunsetStart,
@@ -73,7 +68,8 @@ export async function saveSettings(settings: CircadianSettings): Promise<void> {
 export async function loadSettings(): Promise<Partial<CircadianSettings>> {
   try {
     if (!isRuntimeAvailable()) return getDefaultSettings()
-    const result = await chrome.storage.local.get([
+    const api = browserAPI()!
+    const result = await api.storage.local.get([
       STORAGE_KEYS.ENABLED,
       STORAGE_KEYS.DAYTIME_START,
       STORAGE_KEYS.SUNSET_START,
@@ -106,7 +102,8 @@ export async function saveCurrentTemperature(
 ): Promise<void> {
   try {
     if (!isRuntimeAvailable()) return
-    await chrome.storage.local.set({
+    const api = browserAPI()!
+    await api.storage.local.set({
       [STORAGE_KEYS.CURRENT_TEMP]: temperature
     })
   } catch {
@@ -120,7 +117,8 @@ export async function saveCurrentTemperature(
 export async function loadCurrentTemperature(): Promise<number | null> {
   try {
     if (!isRuntimeAvailable()) return null
-    const result = await chrome.storage.local.get([STORAGE_KEYS.CURRENT_TEMP])
+    const api = browserAPI()!
+    const result = await api.storage.local.get([STORAGE_KEYS.CURRENT_TEMP])
     return result[STORAGE_KEYS.CURRENT_TEMP] ?? null
   } catch {
     return null
@@ -145,7 +143,8 @@ export async function saveForcedTemperature(
 ): Promise<void> {
   try {
     if (!isRuntimeAvailable()) return
-    await chrome.storage.local.set({
+    const api = browserAPI()!
+    await api.storage.local.set({
       [FORCED_KEYS.TEMP]: temperature,
       [FORCED_KEYS.EXPIRES]: expiresAt
     })
@@ -160,7 +159,8 @@ export async function loadForcedTemperature(): Promise<{
 }> {
   try {
     if (!isRuntimeAvailable()) return { temperature: null, expiresAt: null }
-    const result = await chrome.storage.local.get([
+    const api = browserAPI()!
+    const result = await api.storage.local.get([
       FORCED_KEYS.TEMP,
       FORCED_KEYS.EXPIRES
     ])
@@ -176,7 +176,8 @@ export async function loadForcedTemperature(): Promise<{
 export async function clearForcedTemperature(): Promise<void> {
   try {
     if (!isRuntimeAvailable()) return
-    await chrome.storage.local.remove([FORCED_KEYS.TEMP, FORCED_KEYS.EXPIRES])
+    const api = browserAPI()!
+    await api.storage.local.remove([FORCED_KEYS.TEMP, FORCED_KEYS.EXPIRES])
   } catch {
     // ignore
   }
@@ -221,7 +222,8 @@ export async function resetSettings(): Promise<void> {
   const defaults = getDefaultSettings()
   try {
     if (!isRuntimeAvailable()) return
-    await chrome.storage.local.set({
+    const api = browserAPI()!
+    await api.storage.local.set({
       [STORAGE_KEYS.ENABLED]: defaults.enabled,
       [STORAGE_KEYS.DAYTIME_START]: defaults.daytimeStart,
       [STORAGE_KEYS.SUNSET_START]: defaults.sunsetStart,
