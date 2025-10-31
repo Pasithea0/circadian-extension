@@ -2,9 +2,11 @@
 
 A browser extension that tints pages by time of day (daytime, sunset, bedtime).
 
+![Screenshot](.github/screenshot.png)
+
 ## Philosophy
 
-Blue-light impacts our sleep and overall health by disrupting melanopsin receptor's normal function that calibrates our circadian rhythm. This extension's creation was inspired by [f.lux](https://justgetflux.com)'s ability to adjust your device's color profile temperature based on the time of day to aid in preventing this. It's not perfect (this extension definitely isn't) but it's a simple tool many users use to help. 
+Blue-light impacts our sleep and overall health by disrupting melanopsin receptor's normal function that calibrates our circadian rhythm. This extension's creation was inspired by [f.lux](https://justgetflux.com)'s ability to adjust your device's color profile temperature based on the time of day to aid in preventing this. It's not perfect (this extension definitely isn't) but it's a simple tool many users use to help.
 
 The idea: I was checking out some dark reader Firefox addons when I asked myself if any of these dark reader addons had temperature adjustments? I suspect not. And if I were to make an extension, I could use [Orion](https://kagi.com/orion) on my iPhone to install my extension and essentially get f.lux on my iPhone! (Apple shut down f.lux's app)
 Obviously it's not system wide, but still kinda neat!
@@ -53,7 +55,7 @@ Load the built output from `build/<target>-prod` (or dev for live preview) in th
 
 ## Notes
 
-- Icons are in `assets/`. I used magick to convert the logo from SVG to PNG. 
+- Icons are in `assets/`. I used magick to convert the logo from SVG to PNG.
 
 ## License
 
