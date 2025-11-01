@@ -32,13 +32,13 @@ function ensureOverlay(): HTMLDivElement {
   overlayEl.id = "circadian-filter-overlay"
   overlayEl.style.cssText = `
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: -50dvh;
+    left: -50dvw;
+    width: 200dvw;
+    height: 200dvh;
     pointer-events: none;
     z-index: 2147483647;
-    mix-blend-mode: color;
+    mix-blend-mode: multiply;
     transition: none;
   `
   document.body.appendChild(overlayEl)

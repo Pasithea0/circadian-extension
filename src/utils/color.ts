@@ -76,8 +76,9 @@ export function rgbToCSSFilter(rgb: {
 export function kelvinToOverlayColor(kelvin: number): string {
   const rgb = kelvinToRGB(kelvin)
   // Opacity scales with distance from neutral daylight (6500K)
-  const neutral = 6500
-  const diff = Math.min(1, Math.abs(kelvin - neutral) / neutral)
-  const opacity = Math.max(0.18, Math.min(0.55, 0.2 + diff * 0.45))
+  // const neutral = 6500
+  // const diff = Math.min(1, Math.abs(kelvin - neutral) / neutral)
+  // const opacity = Math.max(0.18, Math.min(0.55, 0.2 + diff * 0.45))
+  const opacity = 1
   return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`
 }

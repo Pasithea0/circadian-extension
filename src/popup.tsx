@@ -250,8 +250,9 @@ function IndexPopup() {
             position: "absolute",
             inset: 0,
             pointerEvents: "none",
-            mixBlendMode: "color" as React.CSSProperties["mixBlendMode"],
+            mixBlendMode: "multiply" as React.CSSProperties["mixBlendMode"],
             backgroundColor: kelvinToOverlayColor(currentTemperature),
+            opacity: 0.5,
             zIndex: 0
           }}
         />
