@@ -19,7 +19,7 @@ Circadian is really simple. It creates an invisible element over your whole web 
 
 ## Installation
 
-Find Circadian on the Chrome webstore and [Firefox addon store](https://addons.mozilla.org/en-US/firefox/addon/circadian/)!
+Find Circadian on the [Chrome webstore](https://chromewebstore.google.com/detail/circadian/ciflpcbdlfgbjnclilnngfbkehipndpn) and [Firefox addon store](https://addons.mozilla.org/en-US/firefox/addon/circadian/)!
 
 Alternatively, download the latest release and install manually. Look up how, I can't be bothered explaining everything.
 
