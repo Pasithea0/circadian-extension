@@ -31,6 +31,31 @@ function getTemperatureForPeriod(
 }
 
 /**
+ * Notify all content scripts to update their filters
+ */
+async function notifyAllTabsToUpdate(): Promise<void> {
+  try {
+    if (!isRuntimeAvailable()) return
+    const api = browserAPI()
+    if (!api?.tabs) return
+
+    // Send message to all tabs to update their filters
+    const tabs = await api.tabs.query({})
+    for (const tab of tabs) {
+      if (tab.id) {
+        try {
+          await api.tabs.sendMessage(tab.id, { action: "updateFilter" })
+        } catch {
+          // Ignore errors for tabs that don't have content scripts or are inaccessible
+        }
+      }
+    }
+  } catch {
+    // Ignore notification errors
+  }
+}
+
+/**
  * Update the current temperature based on time and settings
  */
 async function updateTemperature(): Promise<void> {
@@ -45,6 +70,8 @@ async function updateTemperature(): Promise<void> {
       forced.expiresAt > now
     ) {
       await saveCurrentTemperature(forced.temperature)
+      // Notify all tabs to update immediately
+      await notifyAllTabsToUpdate()
       // schedule a refresh at expiry
       if (forcedExpiryTimer) {
         clearTimeout(forcedExpiryTimer)
@@ -92,6 +119,9 @@ async function updateTemperature(): Promise<void> {
 
     // Save current temperature
     await saveCurrentTemperature(temperature)
+
+    // Notify all tabs to update their filters immediately
+    await notifyAllTabsToUpdate()
   } catch (error) {
     console.error("Failed to update temperature:", error)
   }

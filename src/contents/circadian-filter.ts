@@ -152,3 +152,17 @@ try {
 } catch {
   // ignore listener errors during dev reload
 }
+
+// Listen for messages from background script to force updates
+try {
+  const api = browserAPI()
+  api?.runtime.onMessage.addListener(async (message) => {
+    if (message.action === "updateFilter") {
+      await updateFilter()
+    }
+  })
+} catch {
+  // ignore message listener errors during dev reload
+}
+
+// Content script updates are now handled by background script triggers
