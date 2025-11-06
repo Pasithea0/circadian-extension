@@ -353,7 +353,6 @@ function IndexPopup() {
                   : "center",
               gap: 8
             }}>
-
             {/* Toggle row: enable checkbox and hostname */}
             <label
               style={{
@@ -470,7 +469,6 @@ function IndexPopup() {
                 Reset
               </button>
             </div>
-
           </div>
         </div>
       </div>
