@@ -4,6 +4,7 @@ import { browserAPI, isRuntimeAvailable } from "~/utils/browser"
 import { kelvinToOverlayColor } from "~/utils/color"
 import {
   consumeInstantApplyOnce,
+  isHostnameExcluded,
   loadCurrentTemperature,
   loadForcedTemperature,
   loadSettings
@@ -77,17 +78,19 @@ function applyTemperature(
 }
 
 /**
- * Update filter based on stored temperature and enabled state
+ * Update filter based on stored temperature and hostname exclusion
  */
 async function updateFilter(): Promise<void> {
   // Skip if runtime unavailable (e.g., during dev reloads)
   if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.id) {
     return
   }
-  const settings = await loadSettings()
 
-  // Only apply filter if extension is enabled
-  if (!settings.enabled) {
+  const hostname = window.location.hostname
+  const isExcluded = await isHostnameExcluded(hostname)
+
+  // Only apply filter if hostname is not excluded
+  if (isExcluded) {
     lastTemperature = null
     removeOverlay()
     return
@@ -139,6 +142,7 @@ try {
       if (!isRuntimeAvailable()) return
       if (
         changes.circadian_enabled ||
+        changes.circadian_excluded_hostnames ||
         changes.circadian_current_temp ||
         changes.circadian_forced_temp ||
         changes.circadian_forced_temp_expires

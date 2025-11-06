@@ -2,9 +2,12 @@ import React, { useEffect, useState } from "react"
 
 import { kelvinToOverlayColor } from "~/utils/color"
 import {
+  addExcludedHostname,
   clearForcedTemperature,
   getDefaultSettings,
+  isHostnameExcluded,
   loadSettings,
+  removeExcludedHostname,
   saveCurrentTemperature,
   saveForcedTemperature,
   saveSettings,
@@ -25,6 +28,8 @@ import { browserAPI } from "~utils/browser"
 
 function IndexPopup() {
   const [isEnabled, setIsEnabled] = useState(true)
+  const [currentHostname, setCurrentHostname] = useState<string>("")
+  const [isSiteEnabled, setIsSiteEnabled] = useState(true)
   const [daytimeTemp, setDaytimeTemp] = useState(5500)
   const [sunsetTemp, setSunsetTemp] = useState(3300)
   const [bedtimeTemp, setBedtimeTemp] = useState(2700)
@@ -67,6 +72,30 @@ function IndexPopup() {
       if (settings.bedtimeTemp !== undefined)
         setBedtimeTemp(settings.bedtimeTemp)
     })
+  }, [])
+
+  // Get current hostname on mount
+  useEffect(() => {
+    const getCurrentHostname = async () => {
+      try {
+        const api = browserAPI()
+        if (!api?.tabs) return
+
+        const tabs = await api.tabs.query({ active: true, currentWindow: true })
+        const activeTab = tabs[0]
+        if (activeTab?.url) {
+          const url = new URL(activeTab.url)
+          const hostname = url.hostname
+          setCurrentHostname(hostname)
+          const excluded = await isHostnameExcluded(hostname)
+          setIsSiteEnabled(!excluded)
+        }
+      } catch (error) {
+        console.error("Failed to get current hostname:", error)
+      }
+    }
+
+    getCurrentHostname()
   }, [])
 
   // Save settings whenever they change
@@ -168,10 +197,10 @@ function IndexPopup() {
 
   // Save current temperature whenever it changes
   useEffect(() => {
-    if (isEnabled && currentTemperature) {
+    if (isSiteEnabled && currentTemperature) {
       saveCurrentTemperature(currentTemperature)
     }
-  }, [currentTemperature, isEnabled])
+  }, [currentTemperature, isSiteEnabled])
 
   // Calculate status message
   const getStatusMessage = () => {
@@ -245,7 +274,7 @@ function IndexPopup() {
         //   filter: invert(85%) sepia(60%) saturate(600%) hue-rotate(355deg) brightness(105%);
         // }
       `}</style>
-      {isEnabled && currentTemperature ? (
+      {isSiteEnabled && currentTemperature ? (
         <div
           style={{
             position: "absolute",
@@ -285,76 +314,21 @@ function IndexPopup() {
             </svg>
             <span style={{ fontSize: 13, fontWeight: 500 }}>Circadian</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {isEnabled && (
-              <span style={{ fontSize: 11, color: "#AAA" }}>
-                {currentTemperature}K
-              </span>
-            )}
-            {currentTimeString && (
-              <span style={{ fontSize: 11, color: "#AAA" }}>
-                {currentTimeString}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={async () => {
-                // Reset persisted settings
-                await storageResetSettings()
-                await clearForcedTemperature()
+          <div
+            style={{
+              display: "flex",
+              flexDirection:
+                currentHostname && currentHostname.length > 20
+                  ? "column"
+                  : "row",
+              alignItems:
+                currentHostname && currentHostname.length > 20
+                  ? "stretch"
+                  : "center",
+              gap: 8
+            }}>
 
-                // Reset local state to defaults
-                const d = getDefaultSettings()
-                setIsEnabled(d.enabled)
-                setDaytimeTime24("06:00")
-                setSunsetTime24("18:00")
-                setBedtimeTime24("22:00")
-                setDaytimeTemp(d.daytimeTemp)
-                setSunsetTemp(d.sunsetTemp)
-                setBedtimeTemp(d.bedtimeTemp)
-
-                // Exit preview
-                setIsPreviewMode(false)
-
-                // Save new settings to trigger background/content updates
-                const s: CircadianSettings = {
-                  enabled: d.enabled,
-                  daytimeStart: d.daytimeStart,
-                  sunsetStart: d.sunsetStart,
-                  bedtimeStart: d.bedtimeStart,
-                  daytimeTemp: d.daytimeTemp,
-                  sunsetTemp: d.sunsetTemp,
-                  bedtimeTemp: d.bedtimeTemp
-                }
-                await saveSettings(s)
-                // Immediately compute and publish the current temperature so overlay updates now
-                const now = getCurrentUnixTime()
-                const period = getCurrentPeriod(
-                  now,
-                  d.daytimeStart,
-                  d.sunsetStart,
-                  d.bedtimeStart
-                )
-                const temp =
-                  period === "Daytime"
-                    ? d.daytimeTemp
-                    : period === "Sunset"
-                      ? d.sunsetTemp
-                      : d.bedtimeTemp
-                await saveCurrentTemperature(temp)
-              }}
-              title="Reset settings"
-              style={{
-                fontSize: 11,
-                color: "#DDD",
-                background: "#1E1E1E",
-                border: "1px solid #2A2A2A",
-                padding: "2px 6px",
-                borderRadius: 3,
-                cursor: "pointer"
-              }}>
-              Reset
-            </button>
+            {/* Toggle row: enable checkbox and hostname */}
             <label
               style={{
                 display: "flex",
@@ -362,12 +336,22 @@ function IndexPopup() {
                 gap: 6,
                 cursor: "pointer",
                 fontSize: 12,
-                color: "#DDD"
+                color: "#DDD",
+                order: currentHostname && currentHostname.length > 20 ? 1 : 2,
+                justifyContent: "flex-end"
               }}>
               <input
                 type="checkbox"
-                checked={isEnabled}
-                onChange={(e) => setIsEnabled(e.target.checked)}
+                checked={isSiteEnabled}
+                onChange={async (e) => {
+                  const enabled = e.target.checked
+                  setIsSiteEnabled(enabled)
+                  if (enabled) {
+                    await removeExcludedHostname(currentHostname)
+                  } else {
+                    await addExcludedHostname(currentHostname)
+                  }
+                }}
                 style={{
                   cursor: "pointer",
                   width: 14,
@@ -375,8 +359,92 @@ function IndexPopup() {
                   accentColor: "#FFA500"
                 }}
               />
-              <span>Enable</span>
+              <span>{currentHostname || "Enable"}</span>
             </label>
+
+            {/* Info row: temperature, time, reset button */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                order: currentHostname && currentHostname.length > 20 ? 2 : 1,
+                justifyContent: "flex-end"
+              }}>
+              {isSiteEnabled && (
+                <span style={{ fontSize: 11, color: "#AAA" }}>
+                  {currentTemperature}K
+                </span>
+              )}
+              {currentTimeString && (
+                <span style={{ fontSize: 11, color: "#AAA" }}>
+                  {currentTimeString}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={async () => {
+                  // Reset persisted settings
+                  await storageResetSettings()
+                  await clearForcedTemperature()
+
+                  // Reset local state to defaults
+                  const d = getDefaultSettings()
+                  setIsEnabled(d.enabled)
+                  setDaytimeTime24("06:00")
+                  setSunsetTime24("18:00")
+                  setBedtimeTime24("22:00")
+                  setDaytimeTemp(d.daytimeTemp)
+                  setSunsetTemp(d.sunsetTemp)
+                  setBedtimeTemp(d.bedtimeTemp)
+
+                  // Reset site-specific state - after reset, all sites should be enabled
+                  setIsSiteEnabled(true)
+
+                  // Exit preview
+                  setIsPreviewMode(false)
+
+                  // Save new settings to trigger background/content updates
+                  const s: CircadianSettings = {
+                    enabled: d.enabled,
+                    daytimeStart: d.daytimeStart,
+                    sunsetStart: d.sunsetStart,
+                    bedtimeStart: d.bedtimeStart,
+                    daytimeTemp: d.daytimeTemp,
+                    sunsetTemp: d.sunsetTemp,
+                    bedtimeTemp: d.bedtimeTemp
+                  }
+                  await saveSettings(s)
+                  // Immediately compute and publish the current temperature so overlay updates now
+                  const now = getCurrentUnixTime()
+                  const period = getCurrentPeriod(
+                    now,
+                    d.daytimeStart,
+                    d.sunsetStart,
+                    d.bedtimeStart
+                  )
+                  const temp =
+                    period === "Daytime"
+                      ? d.daytimeTemp
+                      : period === "Sunset"
+                        ? d.sunsetTemp
+                        : d.bedtimeTemp
+                  await saveCurrentTemperature(temp)
+                }}
+                title="Reset settings"
+                style={{
+                  fontSize: 11,
+                  color: "#DDD",
+                  background: "#1E1E1E",
+                  border: "1px solid #2A2A2A",
+                  padding: "2px 6px",
+                  borderRadius: 3,
+                  cursor: "pointer"
+                }}>
+                Reset
+              </button>
+            </div>
+
           </div>
         </div>
       </div>
@@ -492,7 +560,7 @@ function IndexPopup() {
                   const v = parseInt(e.target.value, 10)
                   setDaytimeTemp(v)
                   // If adjusting active period, apply immediately without animation
-                  if (activePeriod === "Daytime" && isEnabled) {
+                  if (activePeriod === "Daytime" && isSiteEnabled) {
                     await saveCurrentTemperature(v)
                     // Mark instant apply flag for content script
                     const { markInstantApplyOnce } = await import(
@@ -562,7 +630,7 @@ function IndexPopup() {
                 onChange={async (e) => {
                   const v = parseInt(e.target.value, 10)
                   setSunsetTemp(v)
-                  if (activePeriod === "Sunset" && isEnabled) {
+                  if (activePeriod === "Sunset" && isSiteEnabled) {
                     await saveCurrentTemperature(v)
                     const { markInstantApplyOnce } = await import(
                       "~/utils/storage"
@@ -631,7 +699,7 @@ function IndexPopup() {
                 onChange={async (e) => {
                   const v = parseInt(e.target.value, 10)
                   setBedtimeTemp(v)
-                  if (activePeriod === "Bedtime" && isEnabled) {
+                  if (activePeriod === "Bedtime" && isSiteEnabled) {
                     await saveCurrentTemperature(v)
                     const { markInstantApplyOnce } = await import(
                       "~/utils/storage"

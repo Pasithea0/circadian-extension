@@ -11,7 +11,8 @@ const STORAGE_KEYS = {
   DAYTIME_TEMP: "circadian_daytime_temp",
   SUNSET_TEMP: "circadian_sunset_temp",
   BEDTIME_TEMP: "circadian_bedtime_temp",
-  CURRENT_TEMP: "circadian_current_temp"
+  CURRENT_TEMP: "circadian_current_temp",
+  EXCLUDED_HOSTNAMES: "circadian_excluded_hostnames"
 } as const
 
 // using shared isRuntimeAvailable from utils/browser
@@ -216,7 +217,7 @@ export async function consumeInstantApplyOnce(): Promise<boolean> {
 }
 
 /**
- * Reset all settings to defaults and clear current/forced temperatures
+ * Reset all settings to defaults and clear current/forced temperatures and excluded hostnames
  */
 export async function resetSettings(): Promise<void> {
   const defaults = getDefaultSettings()
@@ -231,10 +232,71 @@ export async function resetSettings(): Promise<void> {
       [STORAGE_KEYS.DAYTIME_TEMP]: defaults.daytimeTemp,
       [STORAGE_KEYS.SUNSET_TEMP]: defaults.sunsetTemp,
       [STORAGE_KEYS.BEDTIME_TEMP]: defaults.bedtimeTemp,
-      [STORAGE_KEYS.CURRENT_TEMP]: null
+      [STORAGE_KEYS.CURRENT_TEMP]: null,
+      [STORAGE_KEYS.EXCLUDED_HOSTNAMES]: []
     })
     await clearForcedTemperature()
   } catch {
     // ignore
   }
+}
+
+/**
+ * Get the list of excluded hostnames
+ */
+export async function getExcludedHostnames(): Promise<string[]> {
+  try {
+    if (!isRuntimeAvailable()) return []
+    const api = browserAPI()!
+    const result = await api.storage.local.get([
+      STORAGE_KEYS.EXCLUDED_HOSTNAMES
+    ])
+    return result[STORAGE_KEYS.EXCLUDED_HOSTNAMES] ?? []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Add a hostname to the exclusion list
+ */
+export async function addExcludedHostname(hostname: string): Promise<void> {
+  try {
+    if (!isRuntimeAvailable()) return
+    const current = await getExcludedHostnames()
+    if (!current.includes(hostname)) {
+      const updated = [...current, hostname]
+      const api = browserAPI()!
+      await api.storage.local.set({
+        [STORAGE_KEYS.EXCLUDED_HOSTNAMES]: updated
+      })
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Remove a hostname from the exclusion list
+ */
+export async function removeExcludedHostname(hostname: string): Promise<void> {
+  try {
+    if (!isRuntimeAvailable()) return
+    const current = await getExcludedHostnames()
+    const updated = current.filter((h) => h !== hostname)
+    const api = browserAPI()!
+    await api.storage.local.set({
+      [STORAGE_KEYS.EXCLUDED_HOSTNAMES]: updated
+    })
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Check if a hostname is in the exclusion list
+ */
+export async function isHostnameExcluded(hostname: string): Promise<boolean> {
+  const excluded = await getExcludedHostnames()
+  return excluded.includes(hostname)
 }
