@@ -78,7 +78,9 @@ function applyTemperature(
 /**
  * Update filter based on stored temperature and hostname exclusion
  */
-async function updateFilter(): Promise<void> {
+async function updateFilter(
+  mode: "auto" | "preview" | "instant" = "auto"
+): Promise<void> {
   // Skip if runtime unavailable (e.g., during dev reloads)
   if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.id) {
     return
@@ -114,6 +116,13 @@ async function updateFilter(): Promise<void> {
       applyTemperature(temperature, "instant")
       return
     }
+
+    // Use forced mode if specified, otherwise use automatic logic
+    if (mode !== "auto") {
+      applyTemperature(temperature, mode)
+      return
+    }
+
     // Automatic time-based change: avoid spamming transitions when manually messing around with it
     const nowTs = Date.now()
     const timeSince = nowTs - lastAutoAppliedAt
@@ -158,7 +167,8 @@ try {
   const api = browserAPI()
   api?.runtime.onMessage.addListener(async (message) => {
     if (message.action === "updateFilter") {
-      await updateFilter()
+      const mode = message.mode === "preview" ? "preview" : "auto"
+      await updateFilter(mode)
     }
   })
 } catch {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 
 import { kelvinToOverlayColor } from "~/utils/color"
 import {
@@ -154,11 +154,26 @@ function IndexPopup() {
     return () => clearInterval(interval)
   }, [isPreviewMode, activePeriod, daytimeStart, sunsetStart, bedtimeStart])
 
+  // Get temperature for a period
+  const getTemperatureForPeriod = useCallback(
+    (period: "Daytime" | "Sunset" | "Bedtime"): number => {
+      switch (period) {
+        case "Daytime":
+          return daytimeTemp
+        case "Sunset":
+          return sunsetTemp
+        case "Bedtime":
+          return bedtimeTemp
+      }
+    },
+    [daytimeTemp, sunsetTemp, bedtimeTemp]
+  )
+
   // Auto-exit preview mode after 10 seconds
   useEffect(() => {
     if (!isPreviewMode) return
 
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout(async () => {
       // Get the current time and period
       const now = getCurrentUnixTime()
       const currentPeriod = getCurrentPeriod(
@@ -171,26 +186,37 @@ function IndexPopup() {
       // Exit preview mode and immediately update to the current period
       setIsPreviewMode(false)
       setActivePeriod(currentPeriod)
-      // Clear any forced preview temperature so background/content revert immediately
-      clearForcedTemperature()
-    }, 10000) // 10 seconds
+      // Clear any forced preview temperature and recalculate correct temperature
+      await clearForcedTemperature()
+      const correctTemp = getTemperatureForPeriod(currentPeriod)
+      await saveCurrentTemperature(correctTemp)
+      // Force all content scripts to update immediately
+      if (browserAPI()?.tabs?.query) {
+        const api = browserAPI()!
+        const tabs = await api.tabs.query({})
+        for (const tab of tabs) {
+          if (tab.id) {
+            try {
+              await api.tabs.sendMessage(tab.id, {
+                action: "updateFilter",
+                mode: "preview"
+              })
+            } catch {
+              // Ignore errors for tabs that don't have content scripts
+            }
+          }
+        }
+      }
+    }, 5000) // 5 seconds
 
     return () => clearTimeout(timeout)
-  }, [isPreviewMode, daytimeStart, sunsetStart, bedtimeStart])
-
-  // Get temperature for a period
-  const getTemperatureForPeriod = (
-    period: "Daytime" | "Sunset" | "Bedtime"
-  ): number => {
-    switch (period) {
-      case "Daytime":
-        return daytimeTemp
-      case "Sunset":
-        return sunsetTemp
-      case "Bedtime":
-        return bedtimeTemp
-    }
-  }
+  }, [
+    isPreviewMode,
+    daytimeStart,
+    sunsetStart,
+    bedtimeStart,
+    getTemperatureForPeriod
+  ])
 
   // Calculate current temperature based on active period
   const currentTemperature = getTemperatureForPeriod(activePeriod)
@@ -480,6 +506,33 @@ function IndexPopup() {
                     // Clicking current period - exit preview mode
                     setIsPreviewMode(false)
                     await clearForcedTemperature()
+                    // Immediately recalculate and apply the correct current temperature
+                    const now = getCurrentUnixTime()
+                    const currentPeriod = getCurrentPeriod(
+                      now,
+                      daytimeStart,
+                      sunsetStart,
+                      bedtimeStart
+                    )
+                    const correctTemp = getTemperatureForPeriod(currentPeriod)
+                    await saveCurrentTemperature(correctTemp)
+                    // Force all content scripts to update immediately
+                    if (browserAPI()?.tabs?.query) {
+                      const api = browserAPI()!
+                      const tabs = await api.tabs.query({})
+                      for (const tab of tabs) {
+                        if (tab.id) {
+                          try {
+                            await api.tabs.sendMessage(tab.id, {
+                              action: "updateFilter",
+                              mode: "preview"
+                            })
+                          } catch {
+                            // Ignore errors for tabs that don't have content scripts
+                          }
+                        }
+                      }
+                    }
                   } else {
                     // Clicking different period - enter preview mode
                     setIsPreviewMode(true)

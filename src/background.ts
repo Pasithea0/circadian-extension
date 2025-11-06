@@ -91,6 +91,8 @@ async function updateTemperature(): Promise<void> {
         forcedExpiryTimer = null
       }
       await clearForcedTemperature()
+      // Force update all tabs
+      await notifyAllTabsToUpdate()
     }
 
     // Load settings
