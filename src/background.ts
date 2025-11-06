@@ -100,10 +100,28 @@ async function updateTemperature(): Promise<void> {
 // Update temperature immediately on startup
 updateTemperature()
 
-// Update temperature every minute
-setInterval(() => {
-  updateTemperature()
-}, 45000) // 45 seconds
+// Schedule updates to align with minute boundaries for accurate transitions
+function scheduleMinuteAlignedUpdates(): void {
+  const now = new Date()
+  const millisecondsUntilNextMinute =
+    (60 - now.getSeconds()) * 1000 - now.getMilliseconds()
+
+  // First update at the next minute boundary
+  setTimeout(() => {
+    if (isRuntimeAvailable()) {
+      updateTemperature()
+    }
+
+    // Then update every minute thereafter
+    setInterval(() => {
+      if (isRuntimeAvailable()) {
+        updateTemperature()
+      }
+    }, 60000)
+  }, millisecondsUntilNextMinute)
+}
+
+scheduleMinuteAlignedUpdates()
 
 // Also listen for storage changes to update immediately when settings change
 try {

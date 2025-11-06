@@ -6,8 +6,7 @@ import {
   consumeInstantApplyOnce,
   isHostnameExcluded,
   loadCurrentTemperature,
-  loadForcedTemperature,
-  loadSettings
+  loadForcedTemperature
 } from "~/utils/storage"
 
 export const config: PlasmoCSConfig = {
@@ -19,7 +18,6 @@ export const config: PlasmoCSConfig = {
 
 let lastTemperature: number | null = null
 let overlayEl: HTMLDivElement | null = null
-let intervalId: number | null = null
 let lastAutoAppliedAt = 0
 
 /**
@@ -65,7 +63,7 @@ function applyTemperature(
   const el = ensureOverlay()
   // Choose transition based on mode
   if (mode === "auto") {
-    el.style.transition = "background-color 10s ease-in-out"
+    el.style.transition = "background-color 30s ease-in-out"
     lastAutoAppliedAt = Date.now()
   } else if (mode === "preview") {
     el.style.transition = "background-color 0.2s ease"
@@ -154,18 +152,3 @@ try {
 } catch {
   // ignore listener errors during dev reload
 }
-
-// Also update periodically (every minute) to catch any missed updates
-intervalId = setInterval(() => {
-  if (!isRuntimeAvailable()) return
-  updateFilter()
-}, 60000) as unknown as number
-
-// Cleanup on unload to prevent callbacks after context invalidation
-function cleanup(): void {
-  if (intervalId) {
-    clearInterval(intervalId)
-    intervalId = null
-  }
-}
-window.addEventListener("beforeunload", cleanup)
