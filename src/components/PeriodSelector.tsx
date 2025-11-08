@@ -30,7 +30,7 @@ export function PeriodSelector({
   getTemperatureForPeriod
 }: PeriodSelectorProps) {
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div style={{ marginBottom: 2 }}>
       <div
         style={{
           display: "flex",
