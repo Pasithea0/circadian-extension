@@ -1,7 +1,7 @@
 {
   "name": "circadian",
   "displayName": "Circadian",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A browser extension that tints pages by time of day (daytime, sunset, bedtime).",
   "author": "Pas",
   "scripts": {
