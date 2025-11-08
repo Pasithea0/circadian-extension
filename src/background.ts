@@ -33,7 +33,9 @@ function getTemperatureForPeriod(
 /**
  * Notify all content scripts to update their filters
  */
-async function notifyAllTabsToUpdate(): Promise<void> {
+async function notifyAllTabsToUpdate(
+  mode: "auto" | "preview" = "auto"
+): Promise<void> {
   try {
     if (!isRuntimeAvailable()) return
     const api = browserAPI()
@@ -44,7 +46,7 @@ async function notifyAllTabsToUpdate(): Promise<void> {
     for (const tab of tabs) {
       if (tab.id) {
         try {
-          await api.tabs.sendMessage(tab.id, { action: "updateFilter" })
+          await api.tabs.sendMessage(tab.id, { action: "updateFilter", mode })
         } catch {
           // Ignore errors for tabs that don't have content scripts or are inaccessible
         }
@@ -70,8 +72,8 @@ async function updateTemperature(): Promise<void> {
       forced.expiresAt > now
     ) {
       await saveCurrentTemperature(forced.temperature)
-      // Notify all tabs to update immediately
-      await notifyAllTabsToUpdate()
+      // Notify all tabs to update immediately with instant transition for forced temp
+      await notifyAllTabsToUpdate("preview")
       // schedule a refresh at expiry
       if (forcedExpiryTimer) {
         clearTimeout(forcedExpiryTimer)
@@ -91,8 +93,8 @@ async function updateTemperature(): Promise<void> {
         forcedExpiryTimer = null
       }
       await clearForcedTemperature()
-      // Force update all tabs
-      await notifyAllTabsToUpdate()
+      // Force update all tabs with preview transition (fast) when returning to actual period
+      await notifyAllTabsToUpdate("preview")
     }
 
     // Load settings
