@@ -19,6 +19,49 @@ export const config: PlasmoCSConfig = {
 let lastTemperature: number | null = null
 let overlayEl: HTMLDivElement | null = null
 let lastAutoAppliedAt = 0
+let isFullscreenMode = false
+
+/**
+ * Check if the document is currently in fullscreen mode
+ */
+function isInFullscreen(): boolean {
+  return !!(
+    document.fullscreenElement ||
+    (document as any).webkitFullscreenElement ||
+    (document as any).mozFullScreenElement ||
+    (document as any).msFullscreenElement
+  )
+}
+
+/**
+ * Get the current fullscreen element
+ */
+function getFullscreenElement(): Element | null {
+  return (
+    document.fullscreenElement ||
+    (document as any).webkitFullscreenElement ||
+    (document as any).mozFullScreenElement ||
+    (document as any).msFullscreenElement ||
+    null
+  )
+}
+
+/**
+ * Handle fullscreen change events
+ */
+function handleFullscreenChange(): void {
+  const wasFullscreen = isFullscreenMode
+  isFullscreenMode = isInFullscreen()
+
+  // If fullscreen state changed, re-apply the filter
+  if (wasFullscreen !== isFullscreenMode) {
+    if (lastTemperature != null) {
+      // Remove existing overlay to force recreation with new positioning
+      removeOverlay()
+      applyTemperature(lastTemperature, "instant")
+    }
+  }
+}
 
 /**
  * Create or update the circadian filter overlay
@@ -27,20 +70,58 @@ function ensureOverlay(): HTMLDivElement {
   if (overlayEl && document.body.contains(overlayEl)) {
     return overlayEl
   }
+
   overlayEl = document.createElement("div")
   overlayEl.id = "circadian-filter-overlay"
-  overlayEl.style.cssText = `
-    position: fixed;
-    top: -50dvh;
-    left: -50dvw;
-    width: 200dvw;
-    height: 200dvh;
-    pointer-events: none;
-    z-index: 2147483647;
-    mix-blend-mode: multiply;
-    transition: none;
-  `
-  document.body.appendChild(overlayEl)
+
+  if (isFullscreenMode) {
+    // In fullscreen mode, position relative to the fullscreen element
+    const fullscreenEl = getFullscreenElement()
+    if (fullscreenEl) {
+      overlayEl.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 2147483647;
+        mix-blend-mode: multiply;
+        transition: none;
+      `
+      // Insert the overlay as the first child of the fullscreen element
+      fullscreenEl.insertBefore(overlayEl, fullscreenEl.firstChild)
+    } else {
+      // Fallback to body positioning if fullscreen element not found
+      overlayEl.style.cssText = `
+        position: fixed;
+        top: -50dvh;
+        left: -50dvw;
+        width: 200dvw;
+        height: 200dvh;
+        pointer-events: none;
+        z-index: 2147483647;
+        mix-blend-mode: multiply;
+        transition: none;
+      `
+      document.body.appendChild(overlayEl)
+    }
+  } else {
+    // Normal mode: fixed positioning covering entire viewport
+    overlayEl.style.cssText = `
+      position: fixed;
+      top: -50dvh;
+      left: -50dvw;
+      width: 200dvw;
+      height: 200dvh;
+      pointer-events: none;
+      z-index: 2147483647;
+      mix-blend-mode: multiply;
+      transition: none;
+    `
+    document.body.appendChild(overlayEl)
+  }
+
   return overlayEl
 }
 
@@ -174,5 +255,11 @@ try {
 } catch {
   // ignore message listener errors during dev reload
 }
+
+// Listen for fullscreen changes (both standard and webkit prefixed)
+document.addEventListener("fullscreenchange", handleFullscreenChange)
+document.addEventListener("webkitfullscreenchange", handleFullscreenChange)
+document.addEventListener("mozfullscreenchange", handleFullscreenChange)
+document.addEventListener("MSFullscreenChange", handleFullscreenChange)
 
 // Content script updates are now handled by background script triggers
